@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>뽀로로 왕국 똥 피하기</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: 'Arial';
+    }
+    canvas {
+      background: url('./배경.jpg') no-repeat center center;
+      background-size: cover;
+      display: block;
+    }
+    #ui {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: white;
+      font-size: 18px;
+      z-index: 10;
+    }
+    #menu {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.7);
+      color: white;
+      padding: 20px;
+      text-align: center;
+      z-index: 11;
+    }
+    .snowflake {
+      position: absolute;
+      width: 5px;
+      height: 5px;
+      background: white;
+      border-radius: 50%;
+      opacity: 0.8;
+      animation: fall linear infinite;
+    }
+    @keyframes fall {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(100vh); }
+    }
+  </style>
+</head>
+<body>
+<div id="ui">
+  점수: <span id="score">0</span> | 최고 점수: <span id="highScore">0</span> | 목숨: <span id="lives">3</span>
+</div>
+<div id="menu">
+  <h1>뽀로로 왕국 똥 피하기</h1>
+  <label>난이도:
+    <select id="difficulty">
+      <option value="1">쉬움</option>
+      <option value="2" selected>보통</option>
+      <option value="3">어려움</option>
+    </select>
+  </label>
+  <br><br>
+  <button onclick="startGame()">게임 시작</button>
+</div>
+<canvas id="gameCanvas" width="800" height="600"></canvas>
+<script>
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const scoreEl = document.getElementById('score');
+  const highScoreEl = document.getElementById('highScore');
+  const livesEl = document.getElementById('lives');
+  const menu = document.getElementById('menu');
+  let character = new Image();
+  let friends = [];
+  let friendIndex = 0;
+  let images = {};
+
+  const characterSize = 50;
+  const poopSize = 30;
+  let characterX = canvas.width / 2;
+  let characterY = canvas.height - characterSize - 10;
+  let moveSpeed = 7;
+  let score = 0;
+  let highScore = localStorage.getItem('highScore') || 0;
+  let lives = 3;
+  let poops = [];
+  let gameInterval;
+  let poopSpeed = 3;
+
+  const friendList = ["크롱", "루피", "패티", "해리", "에디", "포비"];
+  const friendImages = [
+    '크롱.webp', '루피.webp', '패티.webp', '래히.webp', '에디.webp', '포비.webp'
+  ];
+
+  function loadImages() {
+    const names = ['뽀로로.webp', ...friendImages];
+    names.forEach(name => {
+      const img = new Image();
+      img.src = name;
+      images[name] = img;
+    });
+  }
+
+  function drawCharacter(img) {
+    ctx.drawImage(img, characterX, characterY, characterSize, characterSize);
+  }
+
+  function drawPoops() {
+    ctx.fillStyle = 'brown';
+    poops.forEach(poop => {
+      ctx.beginPath();
+      ctx.arc(poop.x, poop.y, poopSize / 2, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  function updatePoops() {
+    for (let i = poops.length - 1; i >= 0; i--) {
+      poops[i].y += poopSpeed;
+      if (poops[i].y > canvas.height) {
+        poops.splice(i, 1);
+        continue;
+      }
+      if (
+        poops[i].x < characterX + characterSize &&
+        poops[i].x + poopSize > characterX &&
+        poops[i].y < characterY + characterSize &&
+        poops[i].y + poopSize > characterY
+      ) {
+        poops.splice(i, 1);
+        lives--;
+        livesEl.textContent = lives;
+        if (lives <= 0) endGame();
+      }
+    }
+  }
+
+  function addPoop() {
+    poops.push({
+      x: Math.random() * (canvas.width - poopSize),
+      y: 0
+    });
+  }
+
+  function updateGame() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawCharacter(images[friendIndex === 0 ? '뽀로로.webp' : friendImages[(friendIndex - 1) % friendImages.length]]);
+    drawPoops();
+    updatePoops();
+    score++;
+    scoreEl.textContent = score;
+    if (score > highScore) {
+      highScore = score;
+      localStorage.setItem('highScore', highScore);
+      highScoreEl.textContent = highScore;
+    }
+    if (score % 100 === 0 && friendIndex < friendImages.length) {
+      friendIndex++;
+    }
+    if (score % 30 === 0) {
+      addPoop();
+      poopSpeed += 0.1;
+    }
+  }
+
+  function startGame() {
+    const difficulty = parseInt(document.getElementById('difficulty').value);
+    moveSpeed = 5 + difficulty;
+    poopSpeed = 2 + difficulty;
+    canvas.width = 900;
+    canvas.height = 700;
+    characterX = canvas.width / 2;
+    score = 0;
+    lives = 3;
+    friendIndex = 0;
+    poops = [];
+    menu.style.display = 'none';
+    highScoreEl.textContent = highScore;
+    gameInterval = setInterval(updateGame, 30);
+  }
+
+  function endGame() {
+    clearInterval(gameInterval);
+    alert("게임 오버! 점수: " + score);
+    menu.style.display = 'block';
+  }
+
+  window.addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft' || e.key === 'a') characterX -= moveSpeed;
+    if (e.key === 'ArrowRight' || e.key === 'd') characterX += moveSpeed;
+    characterX = Math.max(0, Math.min(canvas.width - characterSize, characterX));
+  });
+
+  function makeSnowflakes() {
+    for (let i = 0; i < 20; i++) {
+      const snow = document.createElement('div');
+      snow.className = 'snowflake';
+      snow.style.left = Math.random() * window.innerWidth + 'px';
+      snow.style.animationDuration = (1.5 + Math.random()) + 's';
+      document.body.appendChild(snow);
+    }
+  }
+
+  makeSnowflakes();
+  loadImages();
+</script>
+</body>
+</html>
